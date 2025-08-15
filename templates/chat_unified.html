@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Real Estate Assistant - Chat</title>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #181A20; color: #f1f1f1; margin: 0; height: 100vh; }
+    .chat-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #23272F; border-radius: 0; box-shadow: none; padding: 0; display: flex; flex-direction: column; }
+    .chat-header { background: #20232A; padding: 24px 0 16px 0; text-align: center; border-bottom: 1px solid #282C34; }
+    .chat-header h2 { margin: 0 0 6px 0; color: #61dafb; font-weight: 600; }
+    .chat-header div { font-size: 1em; color: #b0b3b8; }
+    .chat-window { flex: 1 1 auto; overflow-y: auto; padding: 24px 18px 12px 18px; background: #181A20; }
+    .msg { margin-bottom: 18px; display: flex; flex-direction: column; }
+    .msg.user { align-items: flex-end; }
+    .msg.agent { align-items: flex-start; }
+    .msg .bubble { display: inline-block; padding: 14px 20px; border-radius: 18px; max-width: 80%; font-size: 1.08em; line-height: 1.5; }
+    .msg.user .bubble { background: linear-gradient(135deg, #3a8bfd 0%, #005bea 100%); color: #fff; box-shadow: 0 2px 8px rgba(58,139,253,0.08); }
+    .msg.agent .bubble { background: #23272F; color: #f1f1f1; border: 1px solid #282C34; }
+    .chat-image { max-width: 220px; border-radius: 10px; margin: 8px 0; border: 1px solid #282C34; }
+    .input-row { display: flex; gap: 8px; background: #20232A; padding: 18px; border-top: 1px solid #282C34; }
+    .input-row input[type="text"] { flex: 1; padding: 12px 16px; border-radius: 20px; border: none; background: #23272F; color: #f1f1f1; font-size: 1em; outline: none; transition: background 0.2s; }
+    .input-row input[type="text"]:focus { background: #282C34; }
+    .input-row input[type="file"] { flex: none; color: #b0b3b8; background: none; border: none; }
+    .input-row button { padding: 12px 22px; border-radius: 20px; border: none; background: linear-gradient(135deg, #3a8bfd 0%, #005bea 100%); color: #fff; font-weight: 600; font-size: 1em; cursor: pointer; transition: background 0.2s; }
+    .input-row button:disabled { background: #444950; color: #888; cursor: not-allowed; }
+    .chat-footer { margin-top: 0; text-align: center; color: #b0b3b8; font-size: 0.98em; background: #20232A; padding: 10px 0; border-top: 1px solid #282C34; }
+    .chat-footer a { color: #61dafb; text-decoration: none; margin: 0 8px; }
+    .chat-footer a:hover { text-decoration: underline; }
+    ::selection { background: #3a8bfd44; }
+    @media (max-width: 600px) {
+      .chat-header { padding: 16px 0 10px 0; }
+      .chat-window { padding: 10px 4px 6px 4px; }
+      .input-row { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <h2>Real Estate Chat Assistant</h2>
+      <div>Ask a tenancy question or upload a property image</div>
+    </div>
+    <div id="chat-window" class="chat-window"></div>
+    <form id="chat-form" class="input-row" autocomplete="off">
+      <input type="text" id="user-input" placeholder="Type your question or describe the issue..." required />
+      <input type="file" id="image-input" accept="image/*" />
+      <button type="submit">Send</button>
+    </form>
+    <div class="chat-footer">
+      <a href="/">Go to Issue Detector</a> |
+      <a href="/faq">Go to Tenancy FAQ</a>
+    </div>
+  </div>
+  <script>
+    const chatWindow = document.getElementById('chat-window');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const imageInput = document.getElementById('image-input');
+
+    function appendMessage(text, sender, imageUrl = null) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'msg ' + sender;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      if (imageUrl) {
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.className = 'chat-image';
+        bubble.appendChild(img);
+        bubble.appendChild(document.createElement('br'));
+      }
+      bubble.appendChild(document.createTextNode(text));
+      msgDiv.appendChild(bubble);
+      chatWindow.appendChild(msgDiv);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    chatForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const text = userInput.value.trim();
+      const file = imageInput.files[0];
+      if (!text && !file) return;
+      // Show user message
+      appendMessage(text || (file ? '[Image uploaded]' : ''), 'user');
+      userInput.value = '';
+      imageInput.value = '';
+      chatForm.querySelector('button').disabled = true;
+
+      // Prepare data
+      let formData = new FormData();
+      if (file) formData.append('image', file);
+      if (text) formData.append('context', text);
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        if (data.error) {
+          appendMessage(data.error, 'agent');
+        } else if (data.type === 'image') {
+          appendMessage(data.output, 'agent', '/static/uploads/' + data.image);
+        } else if (data.type === 'text') {
+          appendMessage(data.output, 'agent');
+        }
+      } catch (err) {
+        appendMessage('Error contacting server.', 'agent');
+      }
+      chatForm.querySelector('button').disabled = false;
+    });
+  </script>
+</body>
+</html>

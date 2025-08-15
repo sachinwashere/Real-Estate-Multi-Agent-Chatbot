@@ -1,0 +1,15 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Issue Detection</title>
+</head>
+<body>
+  <h2>Upload Property Image</h2>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="file" name="image" required><br><br>
+    <textarea name="context" rows="4" cols="50" placeholder="Optional: Describe your concern..."></textarea><br><br>
+    <input type="submit" value="Analyze">
+  </form>
+</body>
+</html>
